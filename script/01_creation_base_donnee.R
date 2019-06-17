@@ -5,6 +5,7 @@
 
 
 
+
 # Chargement des packages --------------------------------------------------
 library(data.table)
 library(forcats)
@@ -298,20 +299,20 @@ usagers[, c("catu",
               ),
               fct_recode(
                 secu2,
-                "1" = "Oui",
-                "2" = "Non",
-                "3" = "Non déterminable"
+                "Oui"              = "1",
+                "Non"              = "2",
+                "Non déterminable" = "3"
               ),
               fct_recode(
                 locp,
-                "1" = "Sur chaussée à +50 m du passage piéton",
-                "2" = "Sur chaussée à – 50 m du passage piéton",
-                "3" = "Sur passage piéton sans signalisation lumineuse",
-                "4" = "Sur passage piéton avec signalisation lumineuse",
-                "5" = "Sur trottoir",
-                "6" = "Sur accotement",
-                "7" = "Sur refuge ou BAU",
-                "8" = "Sur contre allée"
+                "Sur chaussée à +50 m du passage piéton"          = "1",
+                "Sur chaussée à – 50 m du passage piéton"         = "2",
+                "Sur passage piéton sans signalisation lumineuse" = "3",
+                "Sur passage piéton avec signalisation lumineuse" = "4",
+                "Sur trottoir"                                    = "5",
+                "Sur accotement"                                  = "6",
+                "Sur refuge ou BAU"                               = "7",
+                "Sur contre allée"                                = "8"
               ),
               fct_recode(
                 actp,
@@ -328,7 +329,7 @@ usagers[, c("catu",
                 etatp,
                 "Seul"       = "1" ,
                 "Accompagné" = "2",
-                "En groupe"  = "3" 
+                "En groupe"  = "3"
               )
             )]
 
@@ -347,116 +348,150 @@ allfiles_vehicules <-
   )
 vehicules <- rbindlist(allfiles_vehicules)
 
+# Renommage des variables
+str(vehicules)
 
 
 
-# Creation dictionnaire variables par fichier -----------------------------
+vehicules[, c("senc",
+              "catv",
+              "obs",
+              "obsm",
+              "choc",
+              "manv") := lapply(.SD, function(x)
+                as.factor(as.character(x))), .SDcols =
+            c("senc",
+              "catv",
+              "obs",
+              "obsm",
+              "choc",
+              "manv")]
+
+vehicules[, c("senc",
+              "catv",
+              "obs",
+              "obsm",
+              "choc",
+              "manv") := .(
+                fct_recode(senc,
+                           "croissant"   = "1",
+                           "décroissant" = "2"),
+                fct_recode(
+                  catv,
+                  "Bicyclette"                                         = "1",
+                  "Cyclomoteur <50cm3"                                 = "2",
+                  "Voiturette"                                         = "3",
+                  "2006 (scooter immatriculé)"                         = "4",
+                  "2006 (motocyclette)"                                = "5",
+                  "2006 (side-car)"                                    = "6",
+                  "VL seul"                                            = "7",
+                  "Catégorie plus utilisée (VL + caravane)"            = "8",
+                  "Catégorie plus utilisée (VL + remorque)"            = "9",
+                  "VU seul 1,5T <= PTAC <= 3,5T avec ou sans remorque" = "10",
+                  "2006 (VU (10) + caravane)"                          = "11",
+                  "2006 (VU (10) + remorque)"                          = "12",
+                  "PL seul 3,5T <PTCA <= 7,5T"                         = "13",
+                  "PL seul > 7,5T"                                     = "14",
+                  "PL > 3,5T + remorque"                               = "15",
+                  "Tracteur routier seul"                              = "16",
+                  "Tracteur routier + semi-remorque"                   = "17",
+                  "2006 (transport en commun)"                         = "18",
+                  "2006 (tramway)"                                     = "19",
+                  "Engin spécial"                                      = "20",
+                  "Tracteur agricole"                                  = "21",
+                  "Scooter < 50 cm3"                                   = "30",
+                  "Motocyclette > 50 cm3   et <= 125 cm3"              = "31",
+                  "Scooter  > 50 cm3  et <= 125 cm3"                   = "32",
+                  "Motocyclette > 125 cm3"                             = "33",
+                  "Scooter  > 125 cm3"                                 = "34",
+                  "Quad léger  <= 50 cm3"                              = "35",
+                  "Quad lourd > 50 cm3"                                = "36",
+                  "Autobus"                                            = "37",
+                  "Autocar"                                            = "38",
+                  "Train"                                              = "39",
+                  "Tramway"                                            = "40",
+                  "Autre véhicule"                                     = "99"
+                ),
+                fct_recode(
+                  obs,
+                  "Véhicule en stationnement"                                     = "1",
+                  "Arbre"                                                         = "2",
+                  "Glissière métallique"                                          = "3",
+                  "Glissière béton"                                               = "4",
+                  "Autre glissière"                                               = "5",
+                  "Bâtiment, mur, pile de pont"                                   = "6",
+                  "Support de signalisation verticale ou poste d’appel d’urgence" = "7",
+                  "Poteau"                                                        = "8",
+                  "Mobilier urbain"                                               = "9",
+                  "Parapet"                                                       = "10",
+                  "Ilot, refuge, borne haute"                                     = "11",
+                  "Bordure de trottoir"                                           = "12",
+                  "Fossé, talus, paroi rocheuse"                                  = "13",
+                  "Autre obstacle fixe sur chaussée"                              = "14",
+                  "Autre obstacle fixe sur trottoir ou accotement"                = "15",
+                  "Sortie de chaussée sans obstacle"                              = "16"
+                ),
+                fct_recode(
+                  obsm,
+                  "Piéton"            = "1",
+                  "Véhicule"          = "2",
+                  "Véhicule sur rail" = "4",
+                  "Animal domestique" = "5",
+                  "Animal sauvage"    = "6",
+                  "Autre"             = "9"
+                ),
+                fct_recode(
+                  choc,
+                  "Avant"                      = "1",
+                  "Avant droit"                = "2",
+                  "Avant gauche"               = "3",
+                  "Arrière"                    = "4",
+                  "Arrière droit"              = "5",
+                  "Arrière gauche"             = "6",
+                  "Côté droit"                 = "7",
+                  "Côté gauche"                = "8",
+                  "Chocs multiples (tonneaux)" = "9"
+                ),
+                fct_recode(
+                  manv,
+                  "Sans changement de direction"              = "1",
+                  "Même sens, même file"                      = "2",
+                  "Entre 2 files"                             = "3" ,
+                  "En marche arrière"                         = "4",
+                  "A contresens"                              = "5",
+                  "En franchissant le terre-plein central"    = "6",
+                  "Dans le couloir bus, dans le même sens"    = "7",
+                  "Dans le couloir bus, dans le sens inverse" = "8",
+                  "En s’insérant"                             = "9",
+                  "En faisant demi-tour sur la chaussée"      = "10",
+                  "Changeant de file à gauche"                = "11",
+                  "Changeant de file à droite"                = "12",
+                  "Déporté à gauche"                          = "13",
+                  "Déporté à droite"                          = "14",
+                  "Tournant à gauche"                         = "15",
+                  "Tournant à droite"                         = "16",
+                  "Dépassant à gauche"                        = "17",
+                  "Dépassant à droite"                        = "18",
+                  "Traversant la chaussée"                    = "19",
+                  "Manœuvre de stationnement"                 = "20",
+                  "Manœuvre d’évitement"                      = "21",
+                  "Ouverture de porte"                        = "22",
+                  "Arrêté (hors stationnement)"               = "23",
+                  "En stationnement (avec occupants)"         = "24"
+                )
+              )]
 
 
+# Sauvegarde --------------------------------------------------------------
 
+saveRDS(object = caracteristiques,
+        file = "data/caracteristiques.RDS")
 
+saveRDS(object = lieux,
+        file = "data/lieux.RDS")
 
+saveRDS(object = usagers,
+        file = "data/usagers.RDS")
 
-# dico_vehicules ----------------------------------------------------------
-dico_vehicules        <- list(
-  senc = list("1" = "croissant",
-              "2" = "décroissant"),
-  catv = list(
-    "01" = "Bicyclette",
-    "02" = "Cyclomoteur <50cm3",
-    "03" = "Voiturette",
-    "04" = "2006 (scooter immatriculé)",
-    "05" = "2006 (motocyclette)",
-    "06" = "2006 (side-car)",
-    "07" = "VL seul",
-    "08" = "Catégorie plus utilisée (VL + caravane)",
-    "09" = "Catégorie plus utilisée (VL + remorque)",
-    "10" = "VU seul 1,5T <= PTAC <= 3,5T avec ou sans remorque",
-    "11" = "2006 (VU (10) + caravane)",
-    "12" = "2006 (VU (10) + remorque)",
-    "13" = "PL seul 3,5T <PTCA <= 7,5T",
-    "14" = "PL seul > 7,5T",
-    "15" = "PL > 3,5T + remorque",
-    "16" = "Tracteur routier seul",
-    "17" = "Tracteur routier + semi-remorque",
-    "18" = "2006 (transport en commun)",
-    "19" = "2006 (tramway)",
-    "20" = "Engin spécial",
-    "21" = "Tracteur agricole",
-    "30" = "Scooter < 50 cm3",
-    "31" = "Motocyclette > 50 cm3   et <= 125 cm3",
-    "32" = "Scooter  > 50 cm3  et <= 125 cm3",
-    "33" = "Motocyclette > 125 cm3",
-    "34" = "Scooter  > 125 cm3",
-    "35" = "Quad léger  <= 50 cm3",
-    "36" = "Quad lourd > 50 cm3",
-    "37" = "Autobus",
-    "38" = "Autocar",
-    "39" = "Train",
-    "40" = "Tramway",
-    "99" = "Autre véhicule"
-  ),
-  obs = list(
-    "1" = "Véhicule en stationnement",
-    "2" = "Arbre",
-    "3" = "Glissière métallique",
-    "4" = "Glissière béton",
-    "5" = "Autre glissière",
-    "6" = "Bâtiment, mur, pile de pont",
-    "7" = "Support de signalisation verticale ou poste d’appel d’urgence",
-    "8" = "Poteau",
-    "9" = "Mobilier urbain",
-    "10" = "Parapet",
-    "11" = "Ilot, refuge, borne haute",
-    "12" = "Bordure de trottoir",
-    "13" = "Fossé, talus, paroi rocheuse",
-    "14" = "Autre obstacle fixe sur chaussée",
-    "15" = "Autre obstacle fixe sur trottoir ou accotement",
-    "16" = "Sortie de chaussée sans obstacle"
-  ),
-  obsm = list(
-    "1" = "Piéton",
-    "2" = "Véhicule",
-    "4" = "Véhicule sur rail",
-    "5" = "Animal domestique",
-    "6" = "Animal sauvage",
-    "9" = "Autre"
-  ),
-  choc = list(
-    "1" =  "Avant",
-    "2" = "Avant droit",
-    "3" = "Avant gauche",
-    "4" = "Arrière",
-    "5" = "Arrière droit",
-    "6" = "Arrière gauche",
-    "7" = "Côté droit",
-    "8" = "Côté gauche",
-    "9" = "Chocs multiples (tonneaux)"
-  ),
-  manv = list(
-    "1" = "Sans changement de direction",
-    "2" = "Même sens, même file",
-    "3" = "Entre 2 files",
-    "4" = "En marche arrière",
-    "5" = "A contresens",
-    "6" = "En franchissant le terre-plein central",
-    "7" = "Dans le couloir bus, dans le même sens",
-    "8" = "Dans le couloir bus, dans le sens inverse",
-    "9" = "En s’insérant",
-    "10" = "En faisant demi-tour sur la chaussée",
-    "11" = "Changeant de file à gauche",
-    "12" = "Changeant de file à droite",
-    "13" = "Déporté à gauche",
-    "14" = "Déporté à droite",
-    "15" = "Tournant à gauche",
-    "16" = "Tournant à droite",
-    "17" = "Dépassant à gauche",
-    "18" = "Dépassant à droite",
-    "19" = "Traversant la chaussée",
-    "20" = "Manœuvre de stationnement",
-    "21" = "Manœuvre d’évitement",
-    "22" = "Ouverture de porte",
-    "23" = "Arrêté (hors stationnement)",
-    "24" = "En stationnement (avec occupants)"
-  )
-)
+saveRDS(object = vehicules,
+        file = "data/vehicules.RDS")
