@@ -2,6 +2,7 @@
 
 # Chargement des packages --------------------------------------------------
 library(data.table)
+library(ggmap)
 
 
 # Chargement des donnees -------------------------------------------------
@@ -40,7 +41,7 @@ contexte[, Code_INSEE := paste0(substr(dep, 1, 2), com)]
 code_commune_INSEE <- fread("data/correspondance-code-insee-code-postal.csv",
                             encoding = "UTF-8")  
 colnames(code_commune_INSEE) <- gsub(pattern = " ", replacement = "_", x = colnames(code_commune_INSEE))
-colnames(code_commune_INSEE) <- gsub(pattern = "é", replacement = "é", x = colnames(code_commune_INSEE))
+colnames(code_commune_INSEE) <- gsub(pattern = "é", replacement = "e", x = colnames(code_commune_INSEE))
 
 
 contexte <- merge(x = contexte,
@@ -49,12 +50,18 @@ contexte <- merge(x = contexte,
                   all.x = TRUE)
 
 # Adresse renseignée que pour les accidents en agglomération
-contexte[agg == "En agglomération"]
+
 nrow(contexte[agg == "En agglomération" & is.na(lat) & is.na(long)])/nrow(contexte[agg == "En agglomération"]) # peu d'accident sans localisation
 # 65% d'adresses à reconstituer
 
+contexte[, adresse := paste(adr,",", Code_Postal, Commune)]
+# /!\ adresse tronquée
+length(contexte[is.na(lat) & is.na(long)]$adresse)
+length(contexte[!(is.na(lat) & is.na(long))]$adresse)
 
 
+# Attention c'est payant, 300 crédits googles
+#geocode(contexte[agg == "En agglomération" & is.na(lat) & is.na(long)]$adresse[1], output = "latlona", source = "google", client = google_API)
 # # origAddress data frame in new columns lat and lon
 # for(i in 1:nrow(origAddress))
 # {
