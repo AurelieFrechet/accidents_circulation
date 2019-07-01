@@ -2,10 +2,12 @@
 
 # Chargement des packages --------------------------------------------------
 library(data.table)
+library(dplyr)
 library(ggmap)
+library(stringr)
 
 
-# Chargement des donnees -------------------------------------------------
+# 0- Chargement des donnees -------------------------------------------------
 
 caracteristiques <- readRDS("data/caracteristiques.RDS") %>% as.data.table()
 lieux            <- readRDS("data/lieux.RDS")            %>% as.data.table()
@@ -13,7 +15,7 @@ usagers          <- readRDS("data/usagers.RDS")          %>% as.data.table()
 vehicules        <- readRDS("data/vehicules.RDS")        %>% as.data.table()
 
 
-# Contexte : caracteristique et lieu ----------------------------------------
+# 1 - Contexte : caracteristique et lieu ----------------------------------------
 
 # Jointure des tables
 contexte <- merge(x = caracteristiques,
@@ -30,9 +32,27 @@ contexte[, datetime := as.POSIXct(paste(date, hrmn),
                                   format = "%Y-%m-%d %H%M",
                                   tz = "UTC")]
 
-# Localisation GPS
+#1- Localisation GPS --------------------------------------------------------
 
-# code commune INSEE
+# remise en format GPS ----------------------------------------------------#
+contexte[, lat  := lat  / 100000]
+contexte[, long := long / 100000]
+
+# suppression des coordonnées de "Null Island"
+contexte[lat == 0 & long == 0, c("lat", "long") := NA]
+
+# coordonnées Métropole (C, P ou M) contenues dans un carré
+contexte[gps %in% c("M", "C", "P") &
+           !(long > -7 & long < 10 &
+             lat  > 41 & lat  < 52)
+         , c("lat", "long") := NA]
+
+
+nrow(contexte[!is.na(lat) | !is.na(long)])
+nrow(unique(contexte[!is.na(lat) | !is.na(long), .(lat, long)]))
+
+# 1.1 code commune INSEE-------------------------------------------------------
+
 contexte[, dep := formatC(dep, width = 3, format = "d", flag = "0")]
 contexte[, com := formatC(com, width = 3, format = "d", flag = "0")]
 contexte[, Code_INSEE := paste0(substr(dep, 1, 2), com)]
@@ -43,21 +63,151 @@ code_commune_INSEE <- fread("data/correspondance-code-insee-code-postal.csv",
 colnames(code_commune_INSEE) <- gsub(pattern = " ", replacement = "_", x = colnames(code_commune_INSEE))
 colnames(code_commune_INSEE) <- gsub(pattern = "é", replacement = "e", x = colnames(code_commune_INSEE))
 
-
 contexte <- merge(x = contexte,
                   y = code_commune_INSEE[, .(Code_INSEE, Code_Postal, Commune, Departement)],
                   by = "Code_INSEE", 
                   all.x = TRUE)
 
-# Adresse renseignée que pour les accidents en agglomération
 
+
+
+# 1.2 reconstitution des adresses --------------------------------------------- 
+adresses <- contexte[agg == "En agglomération", .(adr,
+                                                  Code_Postal,
+                                                  com,
+                                                  dep,
+                                                  Commune,
+                                                  Departement,
+                                                  gps,
+                                                  lat,
+                                                  long)]
+
+
+# Mise en forme des adresses
+# Mise en majuscule
+adresses[, adr := toupper(adr)]
+
+# Récupération du numéro de la rue---------------------------------------------#
+
+# Séparation avant/ après virgule
+adr_num_voies <- strsplit(adresses$adr, split = ",")
+adr_num_voies2 <- lapply(
+  X = 1:length(adr_num_voies),
+  FUN = function(x) {
+    if (length(adr_num_voies[[x]]) == 0) {
+      av_virgule = NA
+      ap_virgule = NA
+    }else{
+      if (length(adr_num_voies[[x]]) == 1) {
+        av_virgule = NA
+        ap_virgule = adr_num_voies[[x]]
+      } else {
+        av_virgule = adr_num_voies[[x]][1]
+        ap_virgule = adr_num_voies[[x]][2]
+      }
+    } 
+      return(list(av_virgule, ap_virgule))
+  }
+    )
+
+
+adresses[,
+         av_virgule := sapply(
+           X = 1:length(test),
+           FUN = function(x)
+             adr_num_voies2[[x]][[1]]
+         )]
+
+adresses[, 
+         ap_virgule := sapply(
+           X = 1:length(test),
+           FUN = function(x)
+             adr_num_voies2[[x]][[2]]
+         )]
+  
+
+
+# Test si numéro restant après virgule
+adresses[is.na(av_virgule), av_virgule := str_extract(string = adr, pattern = "^([0-9]+).")]
+adresses[, ap_virgule := gsub("^([0-9]+).", "", ap_virgule)]
+
+
+# Traitement des sans numéros
+adresses[av_virgule %in% c("SNR", "SANS N", "SANS", "SANS N°"), av_virgule := NA]
+adresses[, ap_virgule := gsub("SNR|SANS|SANS N| SANS N°", "", ap_virgule)]
+
+
+# Formatage des noms de rue ---------------------------------------------------#
+
+# On retire les caractères spéciaux
+adresses[, ap_virgule := gsub(pattern = "[[:punct:]]", replacement = " ", x = ap_virgule)]
+
+
+str_replace(gsub(
+  pattern = "\\s+",
+  replacement = " ",
+  x = str_trim(corpus)
+), "B", "b")
+
+# Identification du type de voie
+
+#AVENUE
+adresses[grepl(x = adr, pattern = "\\b(AV|AVENUE|AVE|\\.AV|\\(AV|\\(AVENUE|\\(A)\\b"), type_voie := "AVENUE"]
+adresses[type_voie == "AVENUE", ap_virgule := gsub(pattern = "\\b(AV|AVENUE|AVE|\\.AV|\\(AV|\\(AVENUE|\\(A)\\b",
+                                                   replacement = "",
+                                                   x = ap_virgule)]
+
+#BOULEVARD
+adresses[grepl(x = adr, pattern = "\\b(BD|BOULEVARD|BOULEVAR|BOULEVA|BOULEV)\\b"), type_voie := "BOULEVARD"]
+adresses[type_voie == "BOULEVARD", ap_virgule := gsub(pattern = "\\b(BD|BOULEVARD|BOULEVAR|BOULEVA|BOULEV)\\b",
+                                                   replacement = "",
+                                                   x = ap_virgule)]
+#RUE
+adresses[grepl(x = adr, pattern = "\\b(RUE|RU|\\.RUE|\\(RUE|\\(R|\\.R)\\b"), type_voie := "RUE"]
+adresses[type_voie == "RUE", ap_virgule := gsub(pattern = "\\b(RUE|RU|\\.RUE|\\(RUE|\\(R|\\.R)\\b",
+                                                   replacement = "",
+                                                   x = ap_virgule)]
+
+#ALLEE
+
+#ROUTE
+
+#CHEMIN
+
+View(adresses)
+
+
+
+# adr renseignée que pour les accidents en agglomération
 nrow(contexte[agg == "En agglomération" & is.na(lat) & is.na(long)])/nrow(contexte[agg == "En agglomération"]) # peu d'accident sans localisation
 # 65% d'adresses à reconstituer
 
-contexte[, adresse := paste(adr,",", Code_Postal, Commune)]
+contexte[agg == "En agglomération", adresse := paste(adr,",", Code_Postal, Commune)]
 # /!\ adresse tronquée
-length(contexte[is.na(lat) & is.na(long)]$adresse)
-length(contexte[!(is.na(lat) & is.na(long))]$adresse)
+
+adresses_recupes <- unique(contexte[agg == "En agglomération" &
+                                      is.na(lat) & is.na(long)]$adresse)
+
+# recup_gg_adresses <-
+#   sapply( 
+#     X = adresses_recupes,
+#     FUN = function(x) {
+#       geocode(x, output = "latlona", source = "google")
+#     }
+#   )
+
+
+# Ne fonctionne pas pour l'instant
+# # catr, voie pr et pr1 pour le calcul des coordonnées hors agglomération
+# contexte[agg == "Hors agglomération" &
+#            catr == "Autoroute", adresse := paste0("A", voie, v2, " ", Code_Postal)]
+# contexte[agg == "Hors agglomération" &
+#            catr == "Route Nationale", adresse := paste0("RN", voie, v2, " ", Code_Postal)]
+# contexte[agg == "Hors agglomération" &
+#            catr == "Route Départementale", adresse := paste0("D", voie, v2, " ", Code_Postal)]
+# contexte[agg == "Hors agglomération" &
+#            catr == "Voie Communale", adresse := paste(catr, voie, v2, Code_Postal)]
+
 
 
 # Attention c'est payant, 300 crédits googles
