@@ -69,7 +69,14 @@ contexte <- merge(x = contexte,
                   all.x = TRUE)
 
 
+saveRDS(object = contexte,
+        file = "data/contexte.RDS")
 
+# 1.2. Concordance des codes GPS ------------------------------------------
+
+# P = Paris
+# C = Couronne
+# M = Metropole
 
 # 1.2 reconstitution des adresses --------------------------------------------- 
 adresses <- contexte[agg == "En agglomération", .(adr,
@@ -87,94 +94,7 @@ adresses <- contexte[agg == "En agglomération", .(adr,
 # Mise en majuscule
 adresses[, adr := toupper(adr)]
 
-# Récupération du numéro de la rue---------------------------------------------#
 
-# Séparation avant/ après virgule
-adr_num_voies <- strsplit(adresses$adr, split = ",")
-adr_num_voies2 <- lapply(
-  X = 1:length(adr_num_voies),
-  FUN = function(x) {
-    if (length(adr_num_voies[[x]]) == 0) {
-      av_virgule = NA
-      ap_virgule = NA
-    }else{
-      if (length(adr_num_voies[[x]]) == 1) {
-        av_virgule = NA
-        ap_virgule = adr_num_voies[[x]]
-      } else {
-        av_virgule = adr_num_voies[[x]][1]
-        ap_virgule = adr_num_voies[[x]][2]
-      }
-    } 
-      return(list(av_virgule, ap_virgule))
-  }
-    )
-
-
-adresses[,
-         av_virgule := sapply(
-           X = 1:length(test),
-           FUN = function(x)
-             adr_num_voies2[[x]][[1]]
-         )]
-
-adresses[, 
-         ap_virgule := sapply(
-           X = 1:length(test),
-           FUN = function(x)
-             adr_num_voies2[[x]][[2]]
-         )]
-  
-
-
-# Test si numéro restant après virgule
-adresses[is.na(av_virgule), av_virgule := str_extract(string = adr, pattern = "^([0-9]+).")]
-adresses[, ap_virgule := gsub("^([0-9]+).", "", ap_virgule)]
-
-
-# Traitement des sans numéros
-adresses[av_virgule %in% c("SNR", "SANS N", "SANS", "SANS N°"), av_virgule := NA]
-adresses[, ap_virgule := gsub("SNR|SANS|SANS N| SANS N°", "", ap_virgule)]
-
-
-# Formatage des noms de rue ---------------------------------------------------#
-
-# On retire les caractères spéciaux
-adresses[, ap_virgule := gsub(pattern = "[[:punct:]]", replacement = " ", x = ap_virgule)]
-
-
-str_replace(gsub(
-  pattern = "\\s+",
-  replacement = " ",
-  x = str_trim(corpus)
-), "B", "b")
-
-# Identification du type de voie
-
-#AVENUE
-adresses[grepl(x = adr, pattern = "\\b(AV|AVENUE|AVE|\\.AV|\\(AV|\\(AVENUE|\\(A)\\b"), type_voie := "AVENUE"]
-adresses[type_voie == "AVENUE", ap_virgule := gsub(pattern = "\\b(AV|AVENUE|AVE|\\.AV|\\(AV|\\(AVENUE|\\(A)\\b",
-                                                   replacement = "",
-                                                   x = ap_virgule)]
-
-#BOULEVARD
-adresses[grepl(x = adr, pattern = "\\b(BD|BOULEVARD|BOULEVAR|BOULEVA|BOULEV)\\b"), type_voie := "BOULEVARD"]
-adresses[type_voie == "BOULEVARD", ap_virgule := gsub(pattern = "\\b(BD|BOULEVARD|BOULEVAR|BOULEVA|BOULEV)\\b",
-                                                   replacement = "",
-                                                   x = ap_virgule)]
-#RUE
-adresses[grepl(x = adr, pattern = "\\b(RUE|RU|\\.RUE|\\(RUE|\\(R|\\.R)\\b"), type_voie := "RUE"]
-adresses[type_voie == "RUE", ap_virgule := gsub(pattern = "\\b(RUE|RU|\\.RUE|\\(RUE|\\(R|\\.R)\\b",
-                                                   replacement = "",
-                                                   x = ap_virgule)]
-
-#ALLEE
-
-#ROUTE
-
-#CHEMIN
-
-View(adresses)
 
 
 
