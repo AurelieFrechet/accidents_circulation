@@ -16,7 +16,7 @@ contexte[dep == "750", com := paste0("1", substr(com, 2, 3))]
 
 # Corse
 contexte[dep == "201", dep:= "2A0"]
-contexte[dep == "201", dep:= "2B0"]
+contexte[dep == "202", dep:= "2B0"]
 
 # Outre-Mer
 contexte[dep == "971", com := paste0("1", substr(com, 2, 3))]
@@ -25,6 +25,8 @@ contexte[dep == "973", com := paste0("3", substr(com, 2, 3))]
 contexte[dep == "974", com := paste0("4", substr(com, 2, 3))]
 contexte[dep == "975", com := paste0("5", substr(com, 2, 3))]
 contexte[dep == "976", com := paste0("6", substr(com, 2, 3))]
+
+
 
 
 # 2 - Jointure avec le code INSEE -----------------------------------------
@@ -37,9 +39,22 @@ colnames(code_commune_INSEE) <- gsub(pattern = " ", replacement = "_", x = colna
 colnames(code_commune_INSEE) <- gsub(pattern = "é", replacement = "e", x = colnames(code_commune_INSEE))
 
 
-contexte <- merge(x = contexte,
+contexte_INSEE <- merge(x = contexte,
                   y = code_commune_INSEE[, .(Code_INSEE, Code_Postal, Commune, Departement)],
                   by = "Code_INSEE", 
                   all.x = TRUE)
 
-sum(is.na(contexte$Code_Postal.y))
+test <- contexte_INSEE[is.na(Code_Postal)]
+
+
+# 2b - Jointure avec les vieux codes INSEE --------------------------------
+#www.aef.cci.fr › achatFichiers › pub › outils › Codes-communes-insee
+code_commune_INSEE_old <- fread("data/Codes-communes-insee.csv",
+                            encoding = "UTF-8") 
+names(code_commune_INSEE_old) <- c("Commune", "Code_Postal", "Departement", "Code_Insee")
+code_commune_INSEE_old[, Code_Postal := formatC(Code_Postal, width = 5, format = "d", flag = "0")]
+code_commune_INSEE_old[, Code_Insee  := formatC(Code_Insee, width = 5, format = "d", flag = "0")]
+
+
+# 13055 non trouvé : Marseille sans ses arrondissements
+# 97498 = 97418
